@@ -40,3 +40,13 @@ sum(rate(http_requests_total{service="annuaire", status_class="5xx"}[5m])) / sum
 Pour annuaire, l'error budget est de 3h36 par mois. Si on l'epuise en deux semaines, je regarde d'abord les deploiements recents (un canary qui aurait du etre bloque), puis je gele les deploiements non critiques jusqu'a la fin du mois, et j'ouvre un post-mortem pour comprendre pourquoi l'AnalysisTemplate n'a pas intercepte le probleme en amont.
 
 J'ai choisi 99,5 % plutot que 99,99 % car un SLO trop strict qu'on ne tient jamais rend l'error budget toujours negatif -- autant ne pas en avoir. 99,5 % reste ambitieux mais atteignable pour un service interne comme annuaire.
+
+## Étape 2 — Configuration des buckets (annuaire)
+
+Les buckets par defaut du chart sont 0.05, 0.1, 0.2, 0.3, 0.5, 1, 2, 5 secondes.
+
+Pour annuaire, ces buckets sont conserves tels quels car mon SLO p95 est de 300 ms : le bucket 0.3 est present exactement, avec des points encadrants (0.1, 0.2, 0.5) qui garantissent un quantile p95 precis a ce niveau.
+
+Validation :
+- curl /metrics retourne du Prometheus valide
+- promtool check metrics ne signale que 3 warnings de convention sur des metriques par defaut de prom-client (nodejs_active_handles_total etc), sans impact sur les metriques RED ecrites pour le TP
