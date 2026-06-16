@@ -20,6 +20,7 @@ ingress:
   path: /
 
 env:
+  FAIL_RATE: "0"
   LOG_LEVEL: info
 
 # Métriques Prometheus — paramètres injectés au pod via variables d'environnement.

@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AnalysisTemplate
+metadata:
+  name: {{ include "annuaire.fullname" . }}-analysis
+  labels:
+    {{- include "annuaire.labels" . | nindent 4 }}
+spec:
+  metrics:
+    - name: error-rate
+      interval: 30s
+      count: 10
+      failureLimit: 1
+      successCondition: result[0] < 0.01
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}-canary", status_class="5xx"}[1m]))
+            /
+            sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}-canary"}[1m]))
+    - name: latency-p95
+      interval: 30s
+      count: 10
+      failureLimit: 1
+      successCondition: result[0] < 0.3
+      provider:
+        prometheus:
+          address: http://prometheus-operated.monitoring.svc.cluster.local:9090
+          query: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="{{ include "annuaire.fullname" . }}-canary"}[1m])) by (le))

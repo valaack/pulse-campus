@@ -28,6 +28,8 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
+            - name: FAIL_RATE
+              value: {{ .Values.env.FAIL_RATE | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
             - name: METRICS_BUCKETS
@@ -67,8 +69,10 @@ spec:
         nginx:
           stableIngress: {{ include "annuaire.fullname" . }}
       steps:
-        - setWeight: 10
-        - pause: {}
+        - setWeight: 25
+        - analysis:
+            templates:
+              - templateName: {{ include "annuaire.fullname" . }}-analysis
         - setWeight: 50
         - pause:
             duration: 1m
