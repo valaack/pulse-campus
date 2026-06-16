@@ -39,7 +39,7 @@ spec:
             - name: VERSION
               value: {{ .Chart.AppVersion | quote }}
             - name: DEPLOY_NOTE
-              value: "etape7-analysis-test"
+              value: "etape7-analysis-retest"
             - name: COMMIT
               value: {{ .Values.image.tag | quote }}
           readinessProbe:
