@@ -85,3 +85,38 @@ Capture a l'etape 50% :
 Step: 3/5, SetWeight: 50, ActualWeight: 50, Status: Paused (CanaryPauseStep)
 revision 2 (canary) : 1 pod Running
 revision 1 (stable) : 2 pods Running
+
+## Etape 6 -- Pilotage canary manuel (pause, promote, abort)
+
+Steps modifies pour permettre un pilotage manuel : setWeight 10, pause indefinie ({}), setWeight 50, pause 1m, setWeight 100.
+
+### Scenario 1 -- Promotion normale
+
+Commande : kubectl argo rollouts promote annuaire-dev-annuaire -n devhub-dev
+
+Avant : Paused, Step 1/5, SetWeight 10, ActualWeight 10 (revision canary 1 pod, stable 2 pods)
+Apres : le canary avance au step suivant (50%, pause 1 min automatique), puis termine a 100% Healthy.
+
+Observation : promote ne fait avancer que d'un cran (la pause suivante s'applique normalement). Le canary garde son rythme prevu.
+
+### Scenario 2 -- Annulation explicite (abort)
+
+Commande : kubectl argo rollouts abort annuaire-dev-annuaire -n devhub-dev
+
+Avant : Paused, Step 1/5, SetWeight 10 (revision canary 1 pod, stable 2 pods)
+Apres : Status Degraded, message "RolloutAborted: Rollout aborted update to revision X", SetWeight et ActualWeight retombent a 0. Le ReplicaSet canary est scale a 0 puis supprime, le stable reprend 100% du trafic immediatement.
+
+Un git revert du commit qui avait declenche ce canary a ete necessaire pour remettre Git en coherence avec l'etat reel du cluster (sinon ArgoCD aurait retente le meme canary au sync suivant).
+
+### Scenario 3 -- Promotion forcee (promote --full)
+
+Commande : kubectl argo rollouts promote annuaire-dev-annuaire -n devhub-dev --full
+
+Avant : Paused, Step 1/5, SetWeight 10
+Apres : SetWeight saute directement a 100, toutes les pauses et etapes intermediaires sont ignorees. Le Rollout passe par un etat transitoire Progressing (nouveaux pods en ContainerCreating) puis devient Healthy une fois la nouvelle ReplicaSet stable.
+
+### Reponse argumentee : quand un promote --full est-il acceptable en production ?
+
+Un promote --full saute toute observation intermediaire -- aucune chance de detecter un probleme avant que 100% du trafic soit bascule. C'est acceptable seulement dans deux cas : (1) en incident ou l'on sait deja avec certitude que le canary est bon (deja valide par un autre canal, comme un environnement de staging identique testé juste avant), et que le risque de rester sur l'ancienne version est pire que celui de sauter les paliers ; (2) en situation d'urgence ou chaque minute supplementaire sur une version buguee coute plus cher que le risque d'un déploiement non observe (ex: faille de securite critique a patcher immediatement).
+
+Precautions a prendre : ne jamais l'utiliser par defaut ou par automatisme, le reserver a une decision humaine explicite et documentee (qui a decide, pourquoi), et toujours garder la possibilite d'un rollback immediat (le revert Git doit etre pret a etre push en quelques secondes). Idealement, journaliser cet usage pour audit -- un promote --full frequent est un signal que les analyses automatiques (etape 7) ne sont pas assez fiables ou que les paliers sont mal calibres.
