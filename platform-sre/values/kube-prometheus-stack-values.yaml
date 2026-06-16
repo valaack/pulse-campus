@@ -84,3 +84,9 @@ prometheusOperator:
     patch:
       enabled: false
     enabled: false
+
+# CoreDNS tourne dans kube-system, namespace non whitelisté dans l'AppProject.
+coreDns:
+  enabled: false
+kubeDns:
+  enabled: false
