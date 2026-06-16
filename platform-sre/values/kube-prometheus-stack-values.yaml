@@ -11,7 +11,7 @@ grafana:
   # TODO : passez par un Secret pour le mot de passe admin.
   # En l'état c'est en clair pour démarrer le TP. À CORRIGER avant
   # toute exposition réseau.
-  adminPassword: "changeme"
+  adminPassword: "Pulse2026!Secure"
   defaultDashboardsTimezone: browser
   ingress:
     enabled: true
