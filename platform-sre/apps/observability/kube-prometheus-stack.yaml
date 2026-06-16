@@ -29,7 +29,7 @@ spec:
         valueFiles:
           - $values/platform-sre/values/kube-prometheus-stack-values.yaml
     # 2) le repo où vit le fichier de values.
-    - repoURL: https://github.com/<votre-handle>/pulse-campus.git
+    - repoURL: https://github.com/valaack/pulse-campus.git
       # TODO : alignez sur la même révision que la root Application.
       targetRevision: main
       ref: values

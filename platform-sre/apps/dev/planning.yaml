@@ -14,7 +14,7 @@ spec:
 
   source:
     # TODO : URL de votre fork.
-    repoURL: https://github.com/<votre-handle>/pulse-campus.git
+    repoURL: https://github.com/valaack/pulse-campus.git
     targetRevision: main
     path: services/planning/chart
     helm:

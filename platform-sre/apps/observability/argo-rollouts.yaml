@@ -25,7 +25,7 @@ spec:
         releaseName: argo-rollouts
         valueFiles:
           - $values/platform-sre/values/argo-rollouts-values.yaml
-    - repoURL: https://github.com/<votre-handle>/pulse-campus.git
+    - repoURL: https://github.com/valaack/pulse-campus.git
       targetRevision: main
       ref: values
 

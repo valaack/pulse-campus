@@ -17,7 +17,7 @@ spec:
 
   source:
     # TODO : remplacez par l'URL HTTPS de votre fork de ce repo.
-    repoURL: https://github.com/<votre-handle>/pulse-campus.git
+    repoURL: https://github.com/valaack/pulse-campus.git
     # TODO : choisissez une révision stable (branche `main`, ou un tag).
     targetRevision: main
     # Recurse sur platform-sre/apps : observability + dev.
@@ -34,6 +34,6 @@ spec:
   syncPolicy:
     automated:
       prune: false
-      selfHeal: false
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
