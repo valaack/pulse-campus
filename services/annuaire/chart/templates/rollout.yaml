@@ -24,6 +24,7 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
           env:
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
