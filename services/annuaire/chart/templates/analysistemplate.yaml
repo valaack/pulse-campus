@@ -15,9 +15,9 @@ spec:
         prometheus:
           address: http://prometheus-operated.monitoring.svc.cluster.local:9090
           query: |
-            sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}-canary", status_class="5xx"}[1m]))
+            (sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}-canary", status_class="5xx"}[2m])) or vector(0))
             /
-            sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}-canary"}[1m]))
+            (sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}-canary"}[2m])) or vector(1))
     - name: latency-p95
       interval: 30s
       count: 10
@@ -27,4 +27,4 @@ spec:
         prometheus:
           address: http://prometheus-operated.monitoring.svc.cluster.local:9090
           query: |
-            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="{{ include "annuaire.fullname" . }}-canary"}[1m])) by (le))
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="{{ include "annuaire.fullname" . }}-canary"}[2m])) by (le)) or vector(0)
