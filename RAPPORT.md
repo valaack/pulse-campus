@@ -70,3 +70,18 @@ Dashboard "annuaire - DevHub Campus" avec 4 panneaux :
    Affiche le commit et la version deployee, utile pour confirmer qu'un rollout a bien pousse la bonne image.
 
 Dashboard exporte en JSON et commite dans platform-sre/dashboards/annuaire.json.
+
+## Etape 5 -- Du Deployment au Rollout (canary sur annuaire)
+
+Migration du chart annuaire : suppression de deployment.yaml et service.yaml, ajout de rollout.yaml (kind: Rollout, strategy.canary), service-stable.yaml et service-canary.yaml.
+
+Strategie : setWeight 20, pause 30s, setWeight 50, pause 30s, setWeight 100. Traffic routing via nginx (stableIngress pointant sur l'ingress existant).
+
+Piege rencontre : le CRD Rollout exige le champ `protocol` explicite sur les ports de conteneur (ServerSideApply rejette l'omission, contrairement a un Deployment classique qui a une valeur par defaut).
+
+Validation : premiere sync sans canary (un seul ReplicaSet, normal car pas de version precedente a comparer). Sur un changement de variable d'environnement, le canary s'est deroule correctement : 20% puis pause, 50% puis pause (capture ci-dessous), 100%, avec bascule complete et ScaleDown de l'ancien ReplicaSet.
+
+Capture a l'etape 50% :
+Step: 3/5, SetWeight: 50, ActualWeight: 50, Status: Paused (CanaryPauseStep)
+revision 2 (canary) : 1 pod Running
+revision 1 (stable) : 2 pods Running
