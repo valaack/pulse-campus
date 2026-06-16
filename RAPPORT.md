@@ -50,3 +50,23 @@ Pour annuaire, ces buckets sont conserves tels quels car mon SLO p95 est de 300 
 Validation :
 - curl /metrics retourne du Prometheus valide
 - promtool check metrics ne signale que 3 warnings de convention sur des metriques par defaut de prom-client (nodejs_active_handles_total etc), sans impact sur les metriques RED ecrites pour le TP
+
+## Étape 4 — ServiceMonitor + dashboard Grafana (annuaire)
+
+Le label `release: kps` est ajoute au Service annuaire via le flag `monitoring.enabled`, ce qui permet au ServiceMonitor du kube-prometheus-stack de le decouvrir automatiquement (selecteur `matchLabels` sur les labels du Service annuaire).
+
+Dashboard "annuaire - DevHub Campus" avec 4 panneaux :
+
+1. RPS par route -- sum(rate(http_requests_total{namespace="devhub-dev"}[5m])) by (route)
+   Montre le volume de trafic par endpoint, utile pour detecter un pic ou une chute anormale.
+
+2. Taux d'erreur 5xx -- sum(rate(http_requests_total{status_class="5xx"}[5m])) / sum(rate(http_requests_total[5m]))
+   Ratio d'erreurs serveur sur le total des requetes, indicateur direct du SLO de fiabilite.
+
+3. Latence p50/p95/p99 -- histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))
+   Compare les percentiles de latence pour voir si la majorite des requetes est rapide tout en surveillant la queue (p99).
+
+4. Build info -- annuaire_build_info{namespace="devhub-dev"}
+   Affiche le commit et la version deployee, utile pour confirmer qu'un rollout a bien pousse la bonne image.
+
+Dashboard exporte en JSON et commite dans platform-sre/dashboards/annuaire.json.
