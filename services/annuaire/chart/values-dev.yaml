@@ -11,3 +11,8 @@ env:
 # En étape 4 vous activerez le ServiceMonitor :
 # monitoring:
 #   enabled: true
+
+image:
+  repository: ghcr.io/valaack/annuaire
+  tag: "3639584"
+  pullPolicy: IfNotPresent
