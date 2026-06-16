@@ -67,10 +67,9 @@ spec:
         nginx:
           stableIngress: {{ include "annuaire.fullname" . }}
       steps:
-        - setWeight: 20
-        - pause:
-            duration: 30s
+        - setWeight: 10
+        - pause: {}
         - setWeight: 50
         - pause:
-            duration: 30s
+            duration: 1m
         - setWeight: 100
