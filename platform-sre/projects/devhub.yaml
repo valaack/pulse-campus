@@ -1,0 +1,46 @@
+# AppProject ArgoCD : `devhub` (élargi pour le TP 3)
+#
+# Reprise de l'AppProject du TP 2 avec un cercle de destinations élargi :
+#   - les namespaces applicatifs (devhub-*)
+#   - le namespace monitoring (kube-prometheus-stack)
+#   - le namespace argo-rollouts (contrôleur Argo Rollouts)
+#
+# Référence : https://argo-cd.readthedocs.io/en/stable/operator-manual/project-management/
+
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: devhub
+  namespace: argocd
+spec:
+  description: Plateforme DevHub Campus SRE (TP 3)
+
+  # TODO : URL de votre fork du repo pulse-campus.
+  sourceRepos:
+    # - https://github.com/<votre-handle>/pulse-campus.git
+    - "*"
+
+  # TODO : ajustez si vous nommez vos namespaces différemment.
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: devhub-*
+    - server: https://kubernetes.default.svc
+      namespace: monitoring
+    - server: https://kubernetes.default.svc
+      namespace: argo-rollouts
+
+  # Le kube-prometheus-stack pose beaucoup de CRDs cluster-scoped.
+  # En l'état (vide) ArgoCD bloquerait leur création. Vous devez whitelister
+  # au minimum les CRDs et namespaces pour que la stack s'installe.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    # TODO : ajoutez ici les ressources cluster-scoped supplémentaires
+    # qu'argo-rollouts et kube-prometheus-stack créent (ClusterRole,
+    # ClusterRoleBinding, MutatingWebhookConfiguration, etc.).
+
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

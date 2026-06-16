@@ -1,0 +1,51 @@
+# Application ArgoCD : kube-prometheus-stack
+#
+# Installe Prometheus, Alertmanager, Grafana, node-exporter et
+# kube-state-metrics dans le namespace `monitoring` via le chart Helm
+# de la communauté Prometheus.
+#
+# Étape 3 du poly.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: devhub
+
+  sources:
+    # 1) le chart distant.
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      # TODO : figez une version précise du chart (ne laissez pas HEAD).
+      # Suggestion à valider : "65.x.x". Lisez le CHANGELOG avant de bumper.
+      targetRevision: "65.5.0"
+      helm:
+        releaseName: kps
+        # On référence le fichier values du repo (source 2 ci-dessous).
+        valueFiles:
+          - $values/platform-sre/values/kube-prometheus-stack-values.yaml
+    # 2) le repo où vit le fichier de values.
+    - repoURL: https://github.com/<votre-handle>/pulse-campus.git
+      # TODO : alignez sur la même révision que la root Application.
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    # Le chart crée beaucoup de CRDs ; en cas de drift, on les ignore.
+    # TODO : décidez si vous activez cette ligne.
+    # retry:
+    #   limit: 5

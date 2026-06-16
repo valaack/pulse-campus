@@ -1,0 +1,42 @@
+# Application ArgoCD : argo-rollouts
+#
+# Installe le contrôleur Argo Rollouts et son dashboard dans le namespace
+# `argo-rollouts`.
+#
+# Étape 5 du poly.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argo-rollouts
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: devhub
+
+  sources:
+    - repoURL: https://argoproj.github.io/argo-helm
+      chart: argo-rollouts
+      # TODO : figez une version précise du chart (ne laissez pas HEAD).
+      # Suggestion à valider : "2.37.x".
+      targetRevision: "2.37.7"
+      helm:
+        releaseName: argo-rollouts
+        valueFiles:
+          - $values/platform-sre/values/argo-rollouts-values.yaml
+    - repoURL: https://github.com/<votre-handle>/pulse-campus.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argo-rollouts
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

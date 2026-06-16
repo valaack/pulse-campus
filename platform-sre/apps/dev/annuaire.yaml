@@ -1,0 +1,35 @@
+# Application ArgoCD : annuaire-dev
+#
+# Déploie le chart Helm de services/annuaire/chart dans le namespace devhub-dev.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: annuaire-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: devhub
+
+  source:
+    # TODO : URL de votre fork.
+    repoURL: https://github.com/<votre-handle>/pulse-campus.git
+    # TODO : alignez sur la même révision que la root Application.
+    targetRevision: main
+    path: services/annuaire/chart
+    helm:
+      valueFiles:
+        - values-dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devhub-dev
+
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
