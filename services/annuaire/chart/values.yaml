@@ -38,7 +38,7 @@ monitoring:
 
 # Tant que le Rollout n'est pas écrit (étape 5), le chart garde un Deployment
 # de secours pour démarrer. Passez à false dès que rollout.yaml est en place.
-useDeployment: true
+useDeployment: false
 
 resources:
   requests:
