@@ -79,6 +79,8 @@ kubeProxy:
 
 # ---- Operator ----
 prometheusOperator:
+  tls:
+    enabled: false
   admissionWebhooks:
     # En cluster local kind, l'auto-patch peut bloquer ; on simplifie.
     patch:
