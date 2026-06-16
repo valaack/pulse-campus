@@ -37,7 +37,7 @@ spec:
             - name: VERSION
               value: {{ .Chart.AppVersion | quote }}
             - name: DEPLOY_NOTE
-              value: "etape5-test-canary"
+              value: "etape6-scenario1"
             - name: COMMIT
               value: {{ .Values.image.tag | quote }}
           readinessProbe:
