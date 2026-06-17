@@ -202,3 +202,23 @@ Les trois receivers pointent vers le meme webhook.site (limitation de la version
 ### Validation
 
 Les deux alertes sont visibles dans Prometheus /alerts, statut Inactive (normal car le service est sain). En cas de FAIL_RATE=0.5, l'alerte AnnuaireHighErrorRate passerait en Firing apres 5 min et Alertmanager posterait le payload JSON sur le webhook configure.
+
+## Etape 11 -- Comparaison Argo Rollouts vs Flagger vs RollingUpdate
+
+| Critere | Argo Rollouts | Flagger | RollingUpdate natif K8s |
+|---|---|---|---|
+| Installation | CRD + controleur dedie | CRD + controleur dedie | Rien (natif) |
+| Canary | Oui (weight-based, nginx/istio) | Oui (mesh-based, istio/linkerd/nginx) | Non |
+| Blue/Green | Oui (activeService/previewService) | Oui (primary/canary) | Non |
+| Header-based routing | Oui (via nginx annotations) | Oui (via mesh) | Non |
+| AnalysisTemplate | Oui (Prometheus, Datadog, etc.) | Oui (Prometheus, Datadog, etc.) | Non |
+| Integration ArgoCD | Native (meme ecosysteme Argo) | Necesssite adaptation | Native (Deployment standard) |
+| Rollback automatique | Oui (sur echec analyse) | Oui (sur echec analyse) | Uniquement sur crash pod |
+| Complexite | Moyenne | Moyenne-haute (necessite mesh) | Faible |
+| Observabilite du deploiement | Dashboard dedie + CLI | Grafana dashboard | kubectl rollout status |
+
+### Mon choix pour ce TP
+
+Argo Rollouts s'impose ici car on utilise deja ArgoCD (meme ecosysteme, meme CLI, meme philosophie GitOps). Flagger aurait necessite un service mesh (Istio ou Linkerd) qu'on n'a pas, ce qui aurait complexifie l'infrastructure pour un gain marginal dans notre contexte. Le RollingUpdate natif est insuffisant des qu'on veut du canary ou du blue/green avec observation.
+
+En production avec un service mesh deja en place, Flagger serait un choix valide car il s'integre mieux avec les fonctionnalites avancees du mesh (circuit breaking, retries, mutual TLS). Sans mesh, Argo Rollouts avec nginx est le meilleur compromis simplicite/puissance.
