@@ -7,7 +7,7 @@ ingress:
 
 env:
   LOG_LEVEL: debug
-  DEPLOY_NOTE: "etape8-bluegreen-test"
+  DEPLOY_NOTE: "etape8-bluegreen-test2"
 
 # En étape 4 vous activerez le ServiceMonitor :
 # monitoring:
