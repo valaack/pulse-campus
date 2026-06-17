@@ -1,12 +1,5 @@
-{{- /*
-  Deployment de SECOURS — pour bootstrapper le service tant que le Rollout
-  n'est pas écrit (étapes 0 à 4 du TP).
-  En étape 5 vous écrirez rollout.yaml ET passerez `useDeployment: false`
-  dans values.yaml. Le Deployment cessera alors d'être rendu.
-*/ -}}
-{{- if .Values.useDeployment }}
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
 metadata:
   name: {{ include "planning.fullname" . }}
   labels:
@@ -31,6 +24,7 @@ spec:
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
           env:
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
@@ -63,4 +57,9 @@ spec:
             allowPrivilegeEscalation: {{ .Values.securityContext.allowPrivilegeEscalation }}
             capabilities:
               {{- toYaml .Values.securityContext.capabilities | nindent 14 }}
-{{- end }}
+  strategy:
+    blueGreen:
+      activeService: {{ include "planning.fullname" . }}
+      previewService: {{ include "planning.fullname" . }}-preview
+      autoPromotionEnabled: false
+      scaleDownDelaySeconds: 300

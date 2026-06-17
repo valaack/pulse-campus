@@ -32,7 +32,7 @@ monitoring:
     interval: 30s
     release: kps
 
-useDeployment: true
+useDeployment: false
 
 resources:
   requests:
