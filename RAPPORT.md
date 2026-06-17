@@ -120,3 +120,28 @@ Apres : SetWeight saute directement a 100, toutes les pauses et etapes intermedi
 Un promote --full saute toute observation intermediaire -- aucune chance de detecter un probleme avant que 100% du trafic soit bascule. C'est acceptable seulement dans deux cas : (1) en incident ou l'on sait deja avec certitude que le canary est bon (deja valide par un autre canal, comme un environnement de staging identique testé juste avant), et que le risque de rester sur l'ancienne version est pire que celui de sauter les paliers ; (2) en situation d'urgence ou chaque minute supplementaire sur une version buguee coute plus cher que le risque d'un déploiement non observe (ex: faille de securite critique a patcher immediatement).
 
 Precautions a prendre : ne jamais l'utiliser par defaut ou par automatisme, le reserver a une decision humaine explicite et documentee (qui a decide, pourquoi), et toujours garder la possibilite d'un rollback immediat (le revert Git doit etre pret a etre push en quelques secondes). Idealement, journaliser cet usage pour audit -- un promote --full frequent est un signal que les analyses automatiques (etape 7) ne sont pas assez fiables ou que les paliers sont mal calibres.
+
+## Etape 7 -- AnalysisTemplate : promotion sur preuve
+
+AnalysisTemplate avec 2 metriques Prometheus :
+- error-rate : taux d'erreur 5xx du canary < 1% (requete avec fallback `or vector(0)` pour eviter les resultats vides)
+- latency-p95 : latence p95 du canary < 300ms (meme pattern de fallback)
+
+Parametres : interval 30s, count 10 (5 min d'observation), failureLimit 1.
+
+### Cas nominal (FAIL_RATE=0)
+
+Trafic genere en continu via curl en boucle. L'AnalysisRun a collecte 20 mesures (10 par metrique), toutes reussies. Le canary a ete automatiquement promu de 25% a 50% puis 100% sans intervention humaine.
+
+Capture : AnalysisRun Successful, 20/20 mesures.
+
+### Cas degrade (FAIL_RATE=0.5)
+
+FAIL_RATE=0.5 dans values-dev.yaml : 50% des requetes retournent une 500. L'AnalysisRun a detecte le taux d'erreur excessif apres quelques mesures (6 succes, 2 echecs > failureLimit de 1) et a automatiquement annule le canary.
+
+Message : "Metric error-rate assessed Failed due to failed (2) > failureLimit (1)"
+Le Rollout est passe en Degraded, SetWeight a 0, le stable a repris 100% du trafic.
+
+### Piege rencontre
+
+Les requetes PromQL sans fallback (`or vector(0)`) provoquent une erreur "slice index out of range" quand le canary n'a pas encore recu de trafic. La fenetre de rate a ete elargie de 1m a 2m et des fallbacks ajoutes pour garantir un resultat meme sans donnees.
