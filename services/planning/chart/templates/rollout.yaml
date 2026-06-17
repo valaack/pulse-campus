@@ -28,6 +28,8 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.service.targetPort | quote }}
+            - name: DEPLOY_NOTE
+              value: {{ .Values.env.DEPLOY_NOTE | default "none" | quote }}
             - name: LOG_LEVEL
               value: {{ .Values.env.LOG_LEVEL | quote }}
             - name: METRICS_BUCKETS
