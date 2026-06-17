@@ -179,3 +179,26 @@ Argo Rollouts genere automatiquement un ingress canary avec ces annotations. Res
 Le header a priorite sur le canary-weight : meme si le poids est a 25%, toute requete avec X-Beta-User: true est systematiquement envoyee au canary.
 
 Usage metier : cela permettrait a l'equipe produit de tester chaque release sur leurs propres comptes avant n'importe quel utilisateur, en ajoutant simplement le header via une extension navigateur ou un proxy interne. Combine avec un AnalysisTemplate, on pourrait laisser l'equipe produit valider manuellement la preview pendant que les metriques automatiques surveillent le trafic reel en parallele.
+
+## Etape 10 -- Alerting Alertmanager et notifications
+
+### PrometheusRules
+
+Deux regles creees dans le chart annuaire :
+
+1. AnnuaireHighErrorRate (severity: page) : taux d'erreur 5xx > 1% pendant 5 min. Declencherait une alerte urgente (reveille l'astreinte).
+2. AnnuaireHighLatency (severity: ticket) : latence p95 > 300ms pendant 30 min. Declencherait un ticket non urgent (traitement en heures ouvrees).
+
+### Alertmanager routing
+
+Configuration dans kube-prometheus-stack-values.yaml :
+- route par defaut vers webhook-default
+- match severity=page vers webhook-page
+- match severity=ticket vers webhook-ticket
+- group_by alertname + severity, group_wait 10s, repeat_interval 1h
+
+Les trois receivers pointent vers le meme webhook.site (limitation de la version gratuite). En production, page irait vers PagerDuty/Opsgenie, ticket vers Jira/Slack.
+
+### Validation
+
+Les deux alertes sont visibles dans Prometheus /alerts, statut Inactive (normal car le service est sain). En cas de FAIL_RATE=0.5, l'alerte AnnuaireHighErrorRate passerait en Firing apres 5 min et Alertmanager posterait le payload JSON sur le webhook configure.
