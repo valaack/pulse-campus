@@ -222,3 +222,86 @@ Les deux alertes sont visibles dans Prometheus /alerts, statut Inactive (normal 
 Argo Rollouts s'impose ici car on utilise deja ArgoCD (meme ecosysteme, meme CLI, meme philosophie GitOps). Flagger aurait necessite un service mesh (Istio ou Linkerd) qu'on n'a pas, ce qui aurait complexifie l'infrastructure pour un gain marginal dans notre contexte. Le RollingUpdate natif est insuffisant des qu'on veut du canary ou du blue/green avec observation.
 
 En production avec un service mesh deja en place, Flagger serait un choix valide car il s'integre mieux avec les fonctionnalites avancees du mesh (circuit breaking, retries, mutual TLS). Sans mesh, Argo Rollouts avec nginx est le meilleur compromis simplicite/puissance.
+
+## Etape 12 -- Synthese obligatoire
+
+### Matrice comparatif detaillee
+
+| Critere | RollingUpdate natif | Argo Rollouts | Flagger |
+|---|---|---|---|
+| Courbe d'apprentissage | 5 - rien a apprendre, natif K8s | 3 - CRD + CLI a maitriser, bien documente | 2 - necessite aussi un mesh (Istio/Linkerd) |
+| Integration ArgoCD | 4 - Deployment standard, zero config | 5 - meme ecosysteme, CRD reconnu nativement | 2 - necessite des adaptations custom |
+| Integration Flux | 4 - Deployment standard | 2 - pas d'integration native, necessite des hooks | 5 - concu pour fonctionner avec Flux |
+| Variete des strategies | 1 - RollingUpdate uniquement | 5 - canary, blueGreen, experiment, analyse | 4 - canary, blueGreen, A/B via mesh |
+| Variete des metric providers | 0 - aucun | 5 - Prometheus, Datadog, NewRelic, Wavefront, etc. | 4 - Prometheus, Datadog, CloudWatch |
+| UI / dashboard | 1 - kubectl rollout status | 4 - dashboard web dedie + CLI riche | 2 - pas de dashboard dedie, Grafana dashboards |
+| Cout operationnel cluster | 5 - zero, natif | 3 - un controleur + CRDs, leger | 2 - controleur + mesh obligatoire = lourd |
+| Adapte a un mesh | 1 - pas de traffic shaping | 3 - supporte Istio/nginx/ALB | 5 - concu pour les mesh, traffic shaping natif |
+| Communaute / releases | 5 - maintenu par K8s core | 4 - communaute Argo active, releases regulieres | 3 - communaute plus petite, maintenu par Fluxcd |
+| Risque si controleur tombe | 5 - pas de controleur externe | 2 - le canary se fige a l'etape en cours, pas de promotion ni rollback possible | 2 - meme probleme, le canary se fige |
+
+### Retrospective TP2 vers TP3
+
+| Operation | TP2 (ArgoCD seul) | TP3 (ArgoCD + Rollouts + Prometheus) | Ressenti |
+|---|---|---|---|
+| Deployer une nouvelle version | git push, ArgoCD applique | git push, canary demarre automatiquement | Plus rassurant, on voit le trafic basculer progressivement |
+| Rollback | git revert + push | Automatique si l'analyse echoue | Nettement mieux, pas besoin d'intervention humaine |
+| Detecter un probleme | Regarder les pods manuellement | Prometheus detecte, alerte, et annule le canary | Le systeme reagit avant meme qu'on s'en rende compte |
+| Observer ce qui se passe | UI ArgoCD (sync status) | Grafana dashboards + Prometheus metriques RED | Beaucoup plus riche, on voit le comportement reel du service |
+| Ajouter un service | Un YAML dans platform/apps | Un YAML + rollout.yaml + services + analysistemplate | Plus complexe mais le gain en securite est enorme |
+| Hotfix en urgence | git push direct | Le canary impose quand meme les paliers | Plus contraignant, promote --full existe mais c'est un choix explicite |
+
+2 operations ou le surcout du TP3 n'est pas justifie dans une startup de 3 personnes :
+1. La mise en place de l'AnalysisTemplate avec Prometheus -- pour 3 devs qui connaissent leur code, un simple canary avec pause manuelle suffit. Le temps de setup et de maintenance des requetes PromQL ne vaut pas le coup.
+2. Le Blue/Green qui double les ressources -- dans une startup avec un budget cloud serre, doubler les pods a chaque deploiement est un luxe. Un RollingUpdate avec un bon healthcheck fait le travail.
+
+L'operation qui justifie le passage du TP2 au TP3 pour un responsable plateforme en PME : le rollback automatique sur analyse. Quand on a 10 services et des deploiements quotidiens, un seul incident en production evite grace a l'AnalysisTemplate rembourse tout l'investissement de setup. C'est une assurance qui se paye une fois et qui protege en continu.
+
+### Ce que cette chaine ne sait toujours pas faire
+
+1. Tracabilite distribuee (OpenTelemetry, Jaeger, Tempo)
+Risque : si un appel utilisateur traverse annuaire puis planning puis notif, on ne peut pas reconstituer la chaine. En cas de latence, impossible de savoir quel service est le goulot.
+Outil : OpenTelemetry Collector + Grafana Tempo. Chaque service instrumente ses appels avec des trace-id propages via headers.
+Ref : https://opentelemetry.io/docs/
+
+2. Logs centralises (Loki, Fluent Bit)
+Risque : les logs sont dans chaque pod individuellement. Si un pod crashe, ses logs disparaissent. Correler un pic d'erreur Prometheus avec les logs applicatifs correspondants est manuel et lent.
+Outil : Fluent Bit en DaemonSet qui collecte les logs et les envoie vers Grafana Loki. Les exemplars Prometheus permettent de lier une metrique a un trace-id.
+Ref : https://grafana.com/docs/loki/latest/
+
+3. Mesure cote utilisateur (RUM, Web Vitals)
+Risque : Prometheus mesure la latence cote serveur. Si le CDN est lent ou le navigateur rame, on ne le voit pas. L'experience reelle de l'utilisateur nous echappe.
+Outil : Grafana Faro ou un SDK RUM qui remonte les Core Web Vitals (LCP, FID, CLS) vers un backend d'observabilite.
+Ref : https://grafana.com/docs/faro/latest/
+
+4. Chaos engineering (Chaos Mesh, LitmusChaos)
+Risque : on ne teste jamais la resilience en conditions degradees. Un noeud qui tombe, un reseau lent, un disque plein -- on decouvre les problemes en production.
+Outil : Chaos Mesh pour injecter des pannes controlees (kill pod, network delay, disk fill) et verifier que les alertes se declenchent et que les rollbacks fonctionnent.
+Ref : https://chaos-mesh.org/docs/
+
+5. Politique d'admission (Kyverno, OPA Gatekeeper)
+Risque : rien n'empeche de deployer une image :latest, un container root, ou un pod sans limites de ressources. ArgoCD applique tout ce qui est dans Git sans validation.
+Outil : Kyverno avec des ClusterPolicy qui bloquent les manifests non conformes avant meme qu'ils soient appliques.
+Ref : https://kyverno.io/docs/
+
+6. Signature des images (Sigstore, cosign)
+Risque : n'importe qui avec un acces push au registry peut remplacer une image par une version compromise. On deploie sans verifier l'authenticite.
+Outil : cosign pour signer les images en CI, et une politique Kyverno qui refuse les images non signees.
+Ref : https://docs.sigstore.dev/
+
+7. Backup et disaster recovery (Velero)
+Risque : si le cluster explose ou si quelqu'un supprime un namespace par erreur, ArgoCD peut recreer les Deployments mais pas les donnees (PVC, bases de donnees).
+Outil : Velero pour des snapshots reguliers des PVC et des resources K8s, avec restauration testee periodiquement.
+Ref : https://velero.io/docs/
+
+### Position d'architecte
+
+Demain je deviens responsable plateforme pour 10 services et 30 developpeurs. Voici ma chaine :
+
+Je garde ArgoCD comme socle GitOps -- c'est le pilier, tout passe par Git, zero kubectl en production. Je garde Argo Rollouts avec canary et AnalysisTemplate sur les services critiques (API publiques, services de paiement), mais je laisse un simple RollingUpdate sur les services internes a faible risque (backoffice, outils internes) pour ne pas imposer une complexite inutile partout.
+
+Je remplace le kube-prometheus-stack installe a la main par une stack Grafana managee (Grafana Cloud ou equivalent) pour reduire la charge operationnelle de maintenance. Le monitoring ne doit pas etre un service de plus a maintenir.
+
+J'ajoute en priorite : (1) Kyverno pour bloquer les images :latest et les containers root des le premier jour, (2) Sealed Secrets pour que les secrets soient enfin dans Git, et (3) OpenTelemetry + Loki pour avoir la tracabilite et les logs centralises avant le premier incident serieux. Velero vient juste apres, des qu'on a des donnees persistantes.
+
+Le Blue/Green, je le reserve aux cas ou un canary progressif n'est pas possible (migration de schema de BDD, changement d'API incompatible). Pour tout le reste, le canary avec analyse automatique est le meilleur ratio securite/complexite.
