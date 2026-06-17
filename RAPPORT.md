@@ -145,3 +145,23 @@ Le Rollout est passe en Degraded, SetWeight a 0, le stable a repris 100% du traf
 ### Piege rencontre
 
 Les requetes PromQL sans fallback (`or vector(0)`) provoquent une erreur "slice index out of range" quand le canary n'a pas encore recu de trafic. La fenetre de rate a ete elargie de 1m a 2m et des fallbacks ajoutes pour garantir un resultat meme sans donnees.
+
+## Etape 8 -- Blue/Green sur planning
+
+Migration du chart planning : rollout.yaml avec strategy.blueGreen, service-active.yaml, service-preview.yaml, ingress-preview.yaml (planning-preview.devhub.local).
+
+Configuration : autoPromotionEnabled false, scaleDownDelaySeconds 300 (5 min pour permettre un rollback instantane).
+
+Observation : au deploiement, 4 pods tournent simultanement (2 anciens active + 2 nouveaux preview). Le trafic utilisateur reste sur l'ancienne version via activeService, la nouvelle est accessible uniquement via previewService. Apres promotion, le activeService bascule sur la nouvelle version et l'ancien ReplicaSet reste actif pendant scaleDownDelaySeconds avant d'etre supprime.
+
+### Comparatif canary vs blue/green
+
+| Critere | Canary | Blue/Green |
+|---|---|---|
+| Exposition au risque | Progressive (10%, 25%, 50%...) | Tout ou rien (0% ou 100%) |
+| Cout en ressources | Faible (1 pod canary) | Double (2x les replicas pendant la bascule) |
+| Rollback | Scale down canary, stable intact | Repointer activeService sur ancien RS |
+| Observation | Metriques en conditions reelles de trafic | Test interne sur previewService avant bascule |
+| Cas d'usage ideal | APIs avec beaucoup de trafic, detection progressive | Migrations de schema, changements incompatibles, besoin de test complet avant exposition |
+
+Piege rencontre : ArgoCD avec selfHeal:true re-synce le Rollout pendant la phase Paused, ce qui declenche la promotion automatiquement. En production, il faudrait configurer ArgoCD pour ignorer certains champs du Rollout (annotation argoproj.io/sync-options: Prune=false).
