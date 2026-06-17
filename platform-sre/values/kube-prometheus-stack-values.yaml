@@ -92,3 +92,31 @@ coreDns:
   enabled: false
 kubeDns:
   enabled: false
+
+alertmanager:
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: default
+      group_by: ['alertname', 'severity']
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 1h
+      routes:
+        - match:
+            severity: page
+          receiver: webhook-page
+        - match:
+            severity: ticket
+          receiver: webhook-ticket
+    receivers:
+      - name: default
+        webhook_configs:
+          - url: "https://webhook.site/70f5529c-d0b3-48bd-96e9-6e177e433f3e"
+      - name: webhook-page
+        webhook_configs:
+          - url: "https://webhook.site/70f5529c-d0b3-48bd-96e9-6e177e433f3e"
+      - name: webhook-ticket
+        webhook_configs:
+          - url: "https://webhook.site/70f5529c-d0b3-48bd-96e9-6e177e433f3e"

@@ -1,0 +1,35 @@
+{{- if .Values.monitoring.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "annuaire.fullname" . }}-alerts
+  labels:
+    {{- include "annuaire.labels" . | nindent 4 }}
+    release: {{ .Values.monitoring.serviceMonitor.release | quote }}
+spec:
+  groups:
+    - name: annuaire.rules
+      rules:
+        - alert: AnnuaireHighErrorRate
+          expr: |
+            (sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}", status_class="5xx"}[5m])) or vector(0))
+            /
+            (sum(rate(http_requests_total{service="{{ include "annuaire.fullname" . }}"}[5m])) or vector(1))
+            > 0.01
+          for: 5m
+          labels:
+            severity: page
+          annotations:
+            summary: "Taux d'erreur annuaire superieur a 1% depuis 5 min"
+            description: "Le service annuaire depasse 1% d'erreurs 5xx. Valeur actuelle : {{ "{{ $value | humanizePercentage }}" }}."
+        - alert: AnnuaireHighLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="{{ include "annuaire.fullname" . }}"}[5m])) by (le))
+            > 0.3
+          for: 30m
+          labels:
+            severity: ticket
+          annotations:
+            summary: "Latence p95 annuaire degradee depuis 30 min"
+            description: "La latence p95 du service annuaire depasse 300ms. Valeur actuelle : {{ "{{ $value | humanizeDuration }}" }}."
+{{- end }}
