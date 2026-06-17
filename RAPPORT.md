@@ -165,3 +165,17 @@ Observation : au deploiement, 4 pods tournent simultanement (2 anciens active + 
 | Cas d'usage ideal | APIs avec beaucoup de trafic, detection progressive | Migrations de schema, changements incompatibles, besoin de test complet avant exposition |
 
 Piege rencontre : ArgoCD avec selfHeal:true re-synce le Rollout pendant la phase Paused, ce qui declenche la promotion automatiquement. En production, il faudrait configurer ArgoCD pour ignorer certains champs du Rollout (annotation argoproj.io/sync-options: Prune=false).
+
+## Etape 9 -- Routage header-based (X-Beta-User)
+
+Ajout de additionalIngressAnnotations dans la section trafficRouting.nginx du Rollout annuaire :
+- canary-by-header: X-Beta-User
+- canary-by-header-value: "true"
+
+Argo Rollouts genere automatiquement un ingress canary avec ces annotations. Resultat :
+- curl http://annuaire.devhub.local/healthz -> repond via le stable (200 OK)
+- curl -H "X-Beta-User: true" http://annuaire.devhub.local/healthz -> repond via le canary (200 OK)
+
+Le header a priorite sur le canary-weight : meme si le poids est a 25%, toute requete avec X-Beta-User: true est systematiquement envoyee au canary.
+
+Usage metier : cela permettrait a l'equipe produit de tester chaque release sur leurs propres comptes avant n'importe quel utilisateur, en ajoutant simplement le header via une extension navigateur ou un proxy interne. Combine avec un AnalysisTemplate, on pourrait laisser l'equipe produit valider manuellement la preview pendant que les metriques automatiques surveillent le trafic reel en parallele.
